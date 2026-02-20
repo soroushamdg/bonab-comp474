@@ -1,0 +1,564 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[margin=1in,headheight=15pt]{geometry}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage{amsmath}
+\usepackage{setspace}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    citecolor=black
+}
+
+\lstdefinestyle{clips}{
+    backgroundcolor=\color{gray!8},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{brown},
+    breaklines=true,
+    frame=single,
+    frameround=tttt,
+    rulecolor=\color{gray!50},
+    xleftmargin=1em,
+    xrightmargin=1em,
+    aboveskip=0.8em,
+    belowskip=0.8em,
+    showstringspaces=false,
+    tabsize=3
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\small COMP 474/6741 - Deliverable 1}
+\lhead{\small Laptop Recommendation Expert System}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\titleformat{\section}{\large\bfseries}{{\thesection}}{1em}{}[\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries}{{\thesubsection}}{1em}{}
+
+\setlength{\parskip}{0.5em}
+
+\begin{document}
+
+%% ============================================================
+%% TITLE PAGE
+%% ============================================================
+\begin{titlepage}
+\centering
+\vspace*{2cm}
+
+{\LARGE\bfseries A Rule-Based Expert System\\[0.4em]for Laptop Model Recommendation\par}
+
+\vspace{1.5cm}
+{\large Deliverable 1 - Project Specification and Knowledge Base Design\par}
+
+\vspace{2cm}
+\hrule
+\vspace{0.8cm}
+
+\begin{tabular}{rl}
+\textbf{Course:}      & COMP 474 / 6741 - Intelligent Systems \\[0.4em]
+\textbf{Instructor:}  & Pankaj Kamthan \\[0.4em]
+\textbf{Student:}     & Soroush Abdolmohammadpourbonab \\[0.4em]
+\textbf{Student ID:}  & \#40206879 \\[0.4em]
+\textbf{Date:}        & February 20, 2026 \\[0.4em]
+\textbf{Repository:}  & \url{https://github.com/soroushamdg/bonab-comp474} \\
+\end{tabular}
+
+\vspace{0.8cm}
+\hrule
+
+\vfill
+{\small Department of Computer Science and Software Engineering\\
+Concordia University}
+\end{titlepage}
+
+%% ============================================================
+%% TABLE OF CONTENTS
+%% ============================================================
+\tableofcontents
+\newpage
+
+%% ============================================================
+%% 1. INTRODUCTION
+%% ============================================================
+\section{Introduction}
+
+Choosing a laptop is rarely as straightforward as it appears. A buyer must reconcile CPU architecture, memory capacity, GPU capability, form factor, and price into a single purchasing decision - often without the technical background to evaluate any one of those dimensions confidently. The resulting decision space is large, non-trivial to navigate, and highly sensitive to individual context: a machine that is ideal for 3D rendering is poorly suited to someone who primarily needs a portable business device.
+
+Rule-based expert systems address exactly this kind of structured, knowledge-intensive decision problem. By encoding the reasoning patterns of a domain expert - in this case, a hardware specialist - into explicit if-then rules, the system can reproduce expert-level guidance for any user input, reliably and transparently. Unlike statistical or machine learning approaches, rule-based systems make their logic inspectable: every recommendation can be traced back to the specific rules and facts that produced it.
+
+CLIPS (C Language Integrated Production System), developed originally at NASA's Johnson Space Center, is a well-established shell for building forward-chaining rule-based systems. Its pattern-matching inference engine, support for structured templates, and separation of facts from rules make it a natural fit for academic expert system prototyping. The system described in this report was implemented entirely within CLIPS 6.x using standard declarative constructs.
+
+%% ============================================================
+%% 2. DOMAIN DESCRIPTION
+%% ============================================================
+\section{Domain Description}
+
+\subsection{Problem Domain}
+
+The problem domain is consumer laptop selection in the personal computing market. Given a user's intended use case, budget constraint, portability preference, and peripheral requirements, the system must identify which laptop models from a predefined knowledge base are appropriate for that user.
+
+\subsection{Knowledge Domain}
+
+The knowledge domain spans the mapping between user requirements and laptop hardware specifications. This includes understanding how use cases translate into hardware demands (e.g., gaming requires discrete GPU and high-tier CPU), how budget levels constrain the available model pool, and how portability requirements impose physical constraints on weight and screen size.
+
+\subsection{Suitability for Expert System Modeling}
+
+This domain satisfies the standard criteria for expert system applicability. The reasoning involved is heuristic and experience-driven - rules like ``a user doing video editing will be underserved by an integrated GPU'' reflect knowledge that is not derived from a formula but from accumulated domain experience. The problem is also bounded: the number of relevant attributes is finite, the rules are non-contradictory, and outcomes are discrete (recommend or reject). Authoritative sources for the underlying technical knowledge include:
+
+\begin{itemize}
+    \item Intel processor specifications: \url{https://ark.intel.com}
+    \item AMD CPU documentation: \url{https://www.amd.com/en/products/processors/laptop}
+    \item NVIDIA GPU product pages: \url{https://www.nvidia.com/en-us/geforce/laptops}
+    \item Lenovo product specifications: \url{https://www.lenovo.com/us/en/laptops}
+    \item Dell laptop lineup: \url{https://www.dell.com/en-us/shop/laptops}
+    \item ASUS ROG gaming series: \url{https://rog.asus.com/laptops}
+    \item Apple MacBook specifications: \url{https://www.apple.com/macbook-air}
+    \item NotebookCheck benchmark database: \url{https://www.notebookcheck.net}
+\end{itemize}
+
+%% ============================================================
+%% 3. PROJECT GOAL
+%% ============================================================
+\section{Project Goal}
+
+\subsection{Goal Statement}
+
+The goal of this system is to assist a non-technical user in selecting an appropriate laptop model from a curated knowledge base, by reasoning over their stated usage requirements, budget level, portability needs, and feature preferences.
+
+\subsection{SMART Analysis}
+
+The goal satisfies the SMART criteria as follows. It is \textbf{Specific} in that the system targets laptop model selection, not general hardware advice. It is \textbf{Measurable} because each session produces a concrete set of recommended models, or an informative message if no model satisfies all constraints. It is \textbf{Achievable} through rule-based inference operating over a finite, well-defined knowledge base. It is \textbf{Relevant} to a real-world decision problem faced by millions of consumers. It is \textbf{Time-bound} in that each inference session completes within a single forward-chaining pass over working memory.
+
+%% ============================================================
+%% 4. USER DESCRIPTION
+%% ============================================================
+\section{User Description}
+
+\subsection{Target User}
+
+The primary intended user is a university student or early-career professional who needs to purchase a laptop but lacks the technical background to evaluate hardware specifications independently. This user understands their own needs in practical terms - ``I need to write code,'' ``I want to play games,'' ``I travel frequently'' - but cannot reliably translate those needs into hardware requirements.
+
+\subsection{Knowledge Limitations and Decision Challenges}
+
+This user typically does not know the performance difference between Intel Core i5 and i7 generations, cannot interpret what 16 GB DDR5 RAM implies for workload capacity, and is unsure whether an NVIDIA discrete GPU is necessary for their use case. They may also be prone to over- or under-specifying their needs when browsing product pages directly, resulting in either an overpriced purchase or an underpowered machine.
+
+\subsection{Value of Expert System Assistance}
+
+The expert system adds value by translating qualitative user inputs (use case, budget range) into concrete hardware constraints, then evaluating those constraints against a curated set of real laptop models. The user is not required to understand the inference logic; they provide five inputs and receive an explained recommendation. This mirrors the role of a knowledgeable salesperson, but with consistent, bias-free reasoning.
+
+%% ============================================================
+%% 5. KNOWLEDGE ENGINEERING PROCESS
+%% ============================================================
+\section{Knowledge Engineering Process}
+
+\subsection{Knowledge Acquisition}
+
+The domain knowledge encoded in this system was derived from two principal sources: published hardware documentation (manufacturer specification sheets, CPU/GPU datasheets) and established best practices in the consumer laptop market (performance benchmarks, community-vetted purchasing guides). No direct elicitation from a human expert was performed, which is a limitation acknowledged in Section~\ref{sec:limitations}.
+
+\subsection{Feature Identification}
+
+Five user-facing attributes were identified as sufficient to drive meaningful differentiation:
+
+\begin{enumerate}
+    \item \textbf{Primary use} - the main intended workload
+    \item \textbf{Budget level} - a coarse three-tier price classification
+    \item \textbf{Portability priority} - whether weight and form factor matter
+    \item \textbf{Screen size preference} - desired display size category
+    \item \textbf{Webcam requirement} - whether a built-in camera is necessary
+\end{enumerate}
+
+These were chosen because they capture the largest share of meaningful variation in laptop selection decisions without requiring users to understand hardware directly.
+
+\subsection{Template Design}
+
+Templates were designed to separate user input, laptop knowledge, derived requirements, and system output into distinct structured fact types. Numeric slots (\texttt{ram}, \texttt{weight}, \texttt{screen-size}) use CLIPS \texttt{NUMBER} type to support arithmetic comparisons in \texttt{test} expressions, which is essential for range-based filtering.
+
+\subsection{Rule Granularity and Conflict Handling}
+
+Rules were deliberately kept narrow in scope: each rule addresses a single inference step or a single constraint check. This avoids compound rules that are difficult to debug and maintain. The system uses a salience strategy only where strict ordering is necessary (e.g., printing a user profile header before any other output). Conflict resolution otherwise follows CLIPS default strategy (recency).
+
+\subsection{Elimination Strategy}
+
+The system uses \texttt{rejected} fact assertion rather than fact retraction. This preserves the complete audit trail of the inference session: every rejected model and its reason remain visible in working memory and are printed to the console. The final recommendation rule then uses \texttt{not (rejected (model ?m))} as its eligibility condition. This approach is both transparent and safe - it avoids the risk of prematurely removing facts that may be needed by other rules.
+
+%% ============================================================
+%% 6. FACTBASE DESIGN
+%% ============================================================
+\section{Factbase Design}
+
+\subsection{Templates}
+\label{sec:templates}
+
+The system defines five deftemplates:
+
+\textbf{user} captures the five input attributes described in Section 5.2. All slots are symbolic except for screen preference, which uses symbolic categories (small, medium, large, any) to reduce the input burden on the user.
+
+\textbf{laptop} encodes a single model's hardware profile. It contains eleven slots: \texttt{model} (string), \texttt{year} (integer), \texttt{cpu-tier}, \texttt{storage-type}, \texttt{gpu-type}, \texttt{webcam}, \texttt{price-tier}, and \texttt{category} (all symbolic with controlled allowed-values), and \texttt{ram}, \texttt{screen-size}, and \texttt{weight} (numeric, enabling test-based comparisons).
+
+\textbf{requirement} represents a derived constraint produced by the inference engine. It has three slots: \texttt{attribute} (the requirement type), \texttt{value} (symbolic qualifier), and \texttt{numeric-value} (threshold, defaulting to 0). This design allows both symbolic requirements (e.g., gpu-type = discrete) and numeric thresholds (e.g., min-ram = 16) to coexist in a single template.
+
+\textbf{rejected} records a model that has been eliminated, with its \texttt{model} name and a \texttt{reason} string. Using a string reason rather than a symbolic code makes the output immediately readable to a user inspecting working memory.
+
+\textbf{recommended} records a model that has passed all filters, with a brief \texttt{reason} string confirming it satisfied all derived requirements.
+
+\subsection{Laptop Knowledge Base}
+\label{sec:laptopfacts}
+
+Sixteen laptop models were selected to span multiple categories, price tiers, and hardware configurations. The dataset was designed to ensure that each test case produces a non-trivial filtering outcome — models are drawn from business, gaming, ultrabook, and creator categories, and price tiers are distributed across low, medium, and high to exercise budget constraint rules meaningfully.
+
+\renewcommand{\arraystretch}{1.6}
+\begin{longtable}{>{\small}p{3.6cm}>{\small}p{0.7cm}>{\small}p{1.0cm}>{\small}p{0.8cm}>{\small}p{1.0cm}>{\small}p{1.0cm}>{\small}p{1.0cm}>{\small}p{1.1cm}>{\small}p{1.3cm}}
+\caption{Complete Laptop Knowledge Base -- All 16 Models (2025)} \label{tab:laptops} \\
+\toprule
+\textbf{Model} & \textbf{Year} & \textbf{CPU Tier} & \textbf{RAM (GB)} & \textbf{Storage} & \textbf{GPU} & \textbf{Weight (kg)} & \textbf{Price Tier} & \textbf{Category} \\
+\midrule
+\endfirsthead
+\caption[]{(continued)} \\
+\toprule
+\textbf{Model} & \textbf{Year} & \textbf{CPU Tier} & \textbf{RAM (GB)} & \textbf{Storage} & \textbf{GPU} & \textbf{Weight (kg)} & \textbf{Price Tier} & \textbf{Category} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+Lenovo ThinkPad E14 Gen 6      & 2025 & mid  & 16 & SSD & integrated & 1.42 & medium & business  \\
+ASUS ROG Strix G16 2025        & 2025 & high & 32 & SSD & discrete   & 2.34 & high   & gaming    \\
+Apple MacBook Air M4 13"       & 2025 & high & 16 & SSD & integrated & 1.24 & high   & ultrabook \\
+Acer Aspire 3 2025             & 2025 & mid  & 16 & SSD & integrated & 1.79 & low    & business  \\
+Dell XPS 15 9530               & 2025 & high & 32 & SSD & discrete   & 1.86 & high   & creator   \\
+HP Pavilion Plus 16 2025       & 2025 & mid  & 16 & SSD & integrated & 1.85 & medium & business  \\
+MSI Thin GF63 12th Gen         & 2025 & mid  & 16 & SSD & discrete   & 1.86 & medium & gaming    \\
+Lenovo IdeaPad Flex 5 Gen 9    & 2025 & mid  & 16 & SSD & integrated & 1.49 & medium & ultrabook \\
+Microsoft Surface Laptop 7     & 2025 & high & 16 & SSD & integrated & 1.34 & high   & ultrabook \\
+Samsung Galaxy Book5 Pro 16    & 2025 & mid  & 16 & SSD & integrated & 1.56 & high   & creator   \\
+Razer Blade 16 2025            & 2025 & high & 32 & SSD & discrete   & 2.10 & high   & gaming    \\
+Lenovo Legion Pro 5i Gen 10    & 2025 & high & 32 & SSD & discrete   & 2.40 & high   & gaming    \\
+LG Gram 16 2025                & 2025 & mid  & 16 & SSD & integrated & 1.40 & high   & ultrabook \\
+HP Spectre x360 14 2025        & 2025 & mid  & 16 & SSD & integrated & 1.45 & high   & creator   \\
+ASUS Zenbook 14 OLED 2025      & 2025 & high & 32 & SSD & integrated & 1.39 & medium & ultrabook \\
+Dell Inspiron 15 3000 2025     & 2025 & low  & 16 & SSD & integrated & 1.83 & low    & business  \\
+\end{longtable}
+\renewcommand{\arraystretch}{1}
+
+The dataset intentionally includes models that appear superficially attractive but fail specific constraint combinations. The ASUS Zenbook 14 OLED, for instance, carries a high CPU tier and 32 GB RAM but has only integrated graphics, making it unsuitable for gaming or editing profiles. The Dell XPS 15 9530 carries a discrete GPU and high CPU but belongs to the creator category and survives gaming profiles precisely because the filtering logic targets hardware attributes rather than category labels.
+
+
+%% ============================================================
+%% 7. RULEBASE DESIGN
+%% ============================================================
+\section{Rulebase Design}
+
+The system contains \textbf{41 rules} distributed across three files. Rules are organized into six functional groups, described below with rule counts and representative code.
+
+\subsection{Requirement Inference Rules (24 rules)}
+
+Twenty-four rules populate working memory with \texttt{requirement} facts derived from the \texttt{user} fact. These are organized into five sub-groups:
+
+\textbf{Usage rules (8):} Map each primary-use value to hardware requirements. Gaming asserts discrete GPU and high CPU. Development asserts minimum 16 GB RAM and SSD. Editing asserts 32 GB RAM, high CPU, discrete GPU, and SSD. Browsing asserts minimum 8 GB RAM. Business asserts webcam.
+
+\textbf{Budget rules (4):} Map the three budget levels to a \texttt{max-price-tier} requirement. A low budget permits only low-tier models; medium permits low and medium; high places no restriction. A fourth advisory rule fires for the degenerate gaming-on-low-budget combination.
+
+\textbf{Portability rules (4):} When \texttt{portability = yes}, assert a weight limit of 1.6 kg and a screen limit of 14.1 inches as separate rules. When \texttt{portability = no}, an advisory printout fires and screen size is delegated to the screen-preference group.
+
+\textbf{Screen preference rules (4):} Active only when \texttt{portability = no}. Map \texttt{screen-pref} values to numeric \texttt{max-screen-size} requirements: \texttt{small} to 13.5 inches, \texttt{medium} to 15.6 inches, and \texttt{large} or \texttt{any} to an unrestricted sentinel value of 99.
+
+\textbf{Webcam rule (1):} Fires for any user with \texttt{needs-webcam = yes}, regardless of use case. A \texttt{not} guard prevents a duplicate fact if the business rule already asserted this requirement.
+
+\textbf{GPU suitability rules (3):} Browsing and business users assert a \texttt{no-discrete-gpu} requirement, directing the filtering rules to eliminate machines whose GPU adds cost and weight without benefit. Editing users assert a discrete GPU requirement for GPU-accelerated rendering.
+
+\begin{lstlisting}[style=clips, caption={Webcam requirement rule -- fires for any use case}]
+(defrule req-user-needs-webcam
+   (user (needs-webcam yes))
+   (not (requirement (attribute webcam) (value yes)))
+   =>
+   (assert (requirement (attribute webcam) (value yes)))
+   (printout t "REQUIREMENT: User requires a built-in webcam." crlf))
+\end{lstlisting}
+
+\subsection{Filtering and Elimination Rules (11 rules)}
+
+Eleven rules cross-reference laptop attributes against derived requirements and assert \texttt{rejected} facts for violations. The original nine rules handle RAM, GPU type, CPU tier, weight, screen size, price tier (two rules for low and medium budget separately), webcam, and storage type. Two additional rules were introduced to tighten recommendations when the knowledge base contains many high-specification models:
+
+\textbf{F10 — Discrete GPU elimination:} When the \texttt{no-discrete-gpu} requirement is active, any laptop with a discrete GPU is rejected. This prevents browsing and business profiles from receiving gaming-class hardware recommendations.
+
+\textbf{F11 — Gaming category elimination:} For any non-gaming user, laptops in the \texttt{gaming} category are rejected. Gaming machines sacrifice battery life, fan noise profile, and portability for sustained GPU throughput — characteristics that are liabilities rather than assets for productivity use cases.
+
+\begin{lstlisting}[style=clips, caption={Gaming category filter for non-gaming users}]
+(defrule filter-gaming-category-for-non-gaming-user
+   (user (primary-use ?u))
+   (test (not (eq ?u gaming)))
+   (laptop (model ?m) (category gaming))
+   (not (rejected (model ?m) (reason "Gaming category unsuitable for this use case")))
+   =>
+   (assert (rejected (model ?m) (reason "Gaming category unsuitable for this use case")))
+   (printout t "REJECTED: " ?m " -- gaming-category laptop is unsuitable for "
+             ?u " use." crlf))
+\end{lstlisting}
+
+\subsection{Recommendation Rules (6 rules)}
+
+The six recommendation rules operate after filtering is complete. The core rule asserts a \texttt{recommended} fact for every laptop with no matching \texttt{rejected} fact. A companion explanation rule prints a full hardware profile for each recommendation. A high-salience header rule controls output ordering. A fallback rule fires if no \texttt{recommended} fact is produced, advising the user to relax constraints. A user profile display rule and a rejection summary advisory complete the group.
+
+
+
+%% ============================================================
+%% 8. SYSTEM ARCHITECTURE
+%% ============================================================
+\section{System Architecture}
+
+\subsection{File Structure}
+
+The system is organized into six CLIPS source files and three test files:
+
+\begin{lstlisting}[style=clips, caption={Repository file structure}]
+Laptop-Expert-System/
+  clips/
+    templates.clp             -- 5 deftemplate definitions
+    laptop-facts.clp          -- 16 laptop model instances (deffacts)
+    requirement-rules.clp     -- 24 requirement inference rules
+    filtering-rules.clp       -- 11 elimination rules
+    recommendation-rules.clp  -- 6 recommendation and output rules
+    main.clp                  -- Batch loader entry point
+    test-case-1.clp           -- Developer, medium budget, portability yes
+    test-case-2.clp           -- Gamer, high budget, portability no
+    test-case-3.clp           -- Business, low budget, portability no
+  docs/
+    Deliverable1_Report.pdf
+\end{lstlisting}
+
+\subsection{Inference Workflow}
+
+The system follows a three-phase forward-chaining pipeline. In the first phase, requirement inference rules translate the single \texttt{user} fact into a set of \texttt{requirement} facts covering hardware thresholds, budget constraints, and portability limits. In the second phase, filtering rules cross-reference all 16 \texttt{laptop} facts against the active requirements and assert \texttt{rejected} facts for violations. In the third phase, recommendation rules collect all laptops with no \texttt{rejected} facts and produce \texttt{recommended} facts with printed hardware summaries.
+
+Phase separation is enforced by data dependency: filtering rules cannot fire until requirements exist, and recommendation rules cannot fire until filtering has had the opportunity to run. This structure eliminates the need for explicit salience manipulation in most rules.
+
+\subsection{Loading and Execution}
+
+The system is loaded via the CLIPS \texttt{batch} command. Each test file calls \texttt{load} on all five source files, then \texttt{reset} to instantiate the 16 \texttt{laptop} facts from the \texttt{deffacts} block, then asserts a fresh \texttt{user} fact before calling \texttt{run}.
+
+%% ============================================================
+%% 9. VALIDATION AND VERIFICATION
+%% ============================================================
+\section{Validation and Verification}
+
+Three test cases were executed against the 16-model knowledge base using the updated 41-rule system. Results below reflect actual CLIPS console output.
+
+\subsection{Test Case 1: Developer Profile}
+
+\textbf{Input:} primary-use = development, budget-level = medium, portability = yes, needs-webcam = yes, screen-pref = medium
+
+\textbf{Inferred Requirements:}
+\begin{itemize}
+    \item min-ram = 16 GB (development workload)
+    \item storage-type = SSD (development workload)
+    \item webcam = yes (user requirement)
+    \item max-price-tier = medium (budget)
+    \item max-weight = 1.6 kg (portability)
+    \item max-screen-size = 14.1 inches (portability)
+\end{itemize}
+
+\textbf{Rejection summary (13 models eliminated):}
+\begin{itemize}
+    \item \textit{Lenovo Legion Pro 5i Gen 10, Razer Blade 16, MSI Thin GF63, ASUS ROG Strix G16} -- gaming category unsuitable for development use (F11)
+    \item \textit{HP Spectre x360, LG Gram 16, Legion Pro, Razer Blade, Samsung Galaxy Book5, Surface Laptop 7, Dell XPS 15, Apple MacBook Air M4, ASUS ROG Strix G16} -- price tier high exceeds medium budget (F7)
+    \item \textit{Dell Inspiron 15, Legion Pro, Razer Blade, MSI GF63, HP Pavilion Plus, Dell XPS 15, Acer Aspire 3, ASUS ROG Strix G16} -- weight exceeds 1.6 kg limit (F4)
+    \item \textit{Dell Inspiron 15, LG Gram 16, Legion Pro, Razer Blade, Samsung Galaxy Book5, MSI GF63, HP Pavilion Plus, Dell XPS 15, Acer Aspire 3, ASUS ROG Strix G16} -- screen exceeds 14.1 inch limit (F5)
+\end{itemize}
+
+\textbf{Recommended (3 models):}
+\begin{itemize}
+    \item \textbf{ASUS Zenbook 14 OLED 2025} -- high CPU, 32 GB RAM, SSD, integrated GPU, 14\", 1.39 kg, medium
+    \item \textbf{Lenovo IdeaPad Flex 5 Gen 9} -- mid CPU, 16 GB RAM, SSD, integrated GPU, 14\", 1.49 kg, medium
+    \item \textbf{Lenovo ThinkPad E14 Gen 6} -- mid CPU, 16 GB RAM, SSD, integrated GPU, 14\", 1.42 kg, medium
+\end{itemize}
+
+\textbf{Analysis:} Portability is the dominant constraint, eliminating all machines heavier than 1.6 kg or wider than 14.1 inches. The F11 gaming-category rule eliminates four additional machines before budget filtering even fires. The three surviving models are all 14-inch designs at or below the weight threshold with medium price-tier pricing. The ASUS Zenbook 14 OLED 2025 stands out within the recommendation set for its 32 GB RAM and high-tier CPU, making it the strongest option for demanding development workloads.
+
+\subsection{Test Case 2: Gamer Profile}
+
+\textbf{Input:} primary-use = gaming, budget-level = high, portability = no, screen-pref = large, needs-webcam = no
+
+\textbf{Inferred Requirements:}
+\begin{itemize}
+    \item gpu-type = discrete (gaming workload)
+    \item cpu-tier = high (gaming workload)
+    \item storage-type = SSD (gaming workload)
+    \item max-price-tier = any (high budget -- no restriction)
+    \item max-screen-size = 99 (screen-pref large -- no restriction)
+    \item max-weight = no constraint (portability = no)
+\end{itemize}
+
+\textbf{Rejection summary (12 models eliminated):}
+\begin{itemize}
+    \item \textit{Dell Inspiron 15, ASUS Zenbook 14 OLED, HP Spectre x360, LG Gram 16, Samsung Galaxy Book5, Surface Laptop 7, Lenovo IdeaPad Flex 5, HP Pavilion Plus, Acer Aspire 3, Apple MacBook Air M4, Lenovo ThinkPad E14 Gen 6} -- integrated GPU (F2)
+    \item \textit{Dell Inspiron 15, HP Spectre x360, LG Gram 16, Samsung Galaxy Book5, Lenovo IdeaPad Flex 5, MSI GF63, HP Pavilion Plus, Acer Aspire 3, Lenovo ThinkPad E14 Gen 6} -- CPU tier low or mid (F3)
+\end{itemize}
+
+\textbf{Recommended (4 models):}
+\begin{itemize}
+    \item \textbf{Lenovo Legion Pro 5i Gen 10} -- high CPU, 32 GB RAM, SSD, discrete GPU, 16\", 2.4 kg, high
+    \item \textbf{Razer Blade 16 2025} -- high CPU, 32 GB RAM, SSD, discrete GPU, 16\", 2.1 kg, high
+    \item \textbf{Dell XPS 15 9530} -- high CPU, 32 GB RAM, SSD, discrete GPU, 15.6\", 1.86 kg, high
+    \item \textbf{ASUS ROG Strix G16 2025} -- high CPU, 32 GB RAM, SSD, discrete GPU, 16\", 2.34 kg, high
+\end{itemize}
+
+\textbf{Analysis:} With a high budget and no portability constraint, price and weight filters place no restriction on the recommendation set. The only active hardware requirements are discrete GPU and high CPU tier. All four surviving models satisfy both simultaneously, and all carry 32 GB RAM and SSD storage. The Dell XPS 15 9530, though a creator-category machine rather than a pure gaming laptop, passes all filters because the filtering logic targets hardware attributes, not category labels. This is a deliberate design choice: a developer or editor who also games would benefit from the XPS 15's more balanced thermal profile.
+
+\subsection{Test Case 3: Business Professional Profile}
+
+\textbf{Input:} primary-use = business, budget-level = low, portability = no, screen-pref = any, needs-webcam = yes
+
+\textbf{Inferred Requirements:}
+\begin{itemize}
+    \item webcam = yes (business workload + explicit user requirement)
+    \item no-discrete-gpu = yes (business workload)
+    \item max-price-tier = low (low budget)
+    \item max-screen-size = 99 (screen-pref any -- no restriction)
+    \item max-weight = no constraint (portability = no)
+\end{itemize}
+
+\textbf{Rejection summary (14 models eliminated):}
+\begin{itemize}
+    \item \textit{Lenovo Legion Pro 5i Gen 10, Razer Blade 16, MSI Thin GF63, Dell XPS 15, ASUS ROG Strix G16} -- discrete GPU unnecessary for business use (F10)
+    \item \textit{Lenovo Legion Pro 5i Gen 10, Razer Blade 16, MSI Thin GF63, ASUS ROG Strix G16} -- gaming category unsuitable for business use (F11)
+    \item \textit{ASUS Zenbook 14 OLED, HP Spectre x360, LG Gram 16, Legion Pro, Razer Blade, Samsung Galaxy Book5, Surface Laptop 7, Lenovo IdeaPad Flex 5, MSI GF63, HP Pavilion Plus, Dell XPS 15, Apple MacBook Air M4, ASUS ROG Strix G16, Lenovo ThinkPad E14 Gen 6} -- price tier medium or high exceeds low budget (F6, F7)
+\end{itemize}
+
+\textbf{Recommended (2 models):}
+\begin{itemize}
+    \item \textbf{Dell Inspiron 15 3000 2025} -- low CPU, 16 GB RAM, SSD, integrated GPU, 15.6\", 1.83 kg, low
+    \item \textbf{Acer Aspire 3 2025} -- mid CPU, 16 GB RAM, SSD, integrated GPU, 15.6\", 1.79 kg, low
+\end{itemize}
+
+\textbf{Analysis:} Budget is the dominant constraint, accounting for the elimination of 14 out of 16 models. The GPU and gaming-category filters fire first and remove the discrete GPU machines, but budget filtering would have caught most of those anyway. Both surviving models are the only low-price-tier entries in the knowledge base, both carry webcams, and both use integrated graphics appropriate for business workloads. Between the two, the Acer Aspire 3 has a mid-tier CPU compared to the Inspiron's low-tier CPU, making it the stronger recommendation for users whose budget is the primary constraint.
+
+\subsection{Summary}
+
+Table~\ref{tab:testresults} summarises the outcome of all three test cases against the 16-model knowledge base.
+
+\begin{table}[h]
+\centering
+\renewcommand{\arraystretch}{1.6}
+\begin{tabular}{p{1.3cm} p{3.8cm} p{2.2cm} p{1.4cm} p{3.5cm}}
+\toprule
+\textbf{Test} & \textbf{Profile} & \textbf{Dominant Filter} & \textbf{Rejected} & \textbf{Recommended} \\
+\midrule
+TC-1 & Developer, medium, portability yes  & Portability + budget     & 13 of 16 & Zenbook 14 OLED, Flex 5 Gen 9, ThinkPad E14 Gen 6 \\
+TC-2 & Gamer, high budget, portability no  & GPU + CPU tier           & 12 of 16 & ROG Strix G16, Razer Blade 16, Dell XPS 15, Legion Pro 5i \\
+TC-3 & Business, low budget, portability no & Budget                  & 14 of 16 & Acer Aspire 3, Dell Inspiron 15 \\
+\bottomrule
+\end{tabular}
+\caption{Test case summary -- verified against actual CLIPS output with 16-model fact base}
+\label{tab:testresults}
+\end{table}
+%% ============================================================
+%% 10. EXPLAINABILITY
+%% ============================================================
+\section{Explainability}
+
+Explainability is a core design objective of this system. Three mechanisms work together to make the reasoning transparent.
+
+First, every requirement inference rule includes a \texttt{printout} statement that describes, in plain English, why a requirement was asserted. This gives the user visibility into the first phase of inference without needing to inspect working memory directly.
+
+Second, every rejection rule prints the model name, the specific attribute value that caused rejection, and the threshold it failed to meet. This makes each elimination auditable: a user or developer can read the console output sequentially and reconstruct the full chain of reasoning.
+
+Third, the recommendation explanation rule prints a complete hardware profile for every recommended model, allowing the user to confirm that the recommendation aligns with what they asked for. This is particularly important in cases like Test Case 1, where two models are recommended and the user may need to choose between them.
+
+This level of transparency is not incidental - it is architecturally enforced. Because the system uses \texttt{rejected} fact assertion rather than fact deletion, every intermediate conclusion persists in working memory for the duration of the session and is available for inspection via CLIPS's \texttt{facts} command.
+
+%% ============================================================
+%% 11. DESIGN QUALITY EVALUATION
+%% ============================================================
+\section{Design Quality Evaluation}
+
+\textbf{Modularity:} Each CLIPS file has a single, well-defined responsibility. Templates define structure. Facts encode knowledge. Rules are split by function across three files. This separation means that adding a new laptop model requires editing only \texttt{laptop-facts.clp}, and adding a new use-case rule requires editing only \texttt{requirement-rules.clp}. Neither change affects any other file.
+
+\textbf{Maintainability:} Rule names are descriptive and follow a consistent naming convention (\texttt{category-condition-consequence}). Each rule group is preceded by a block comment. This makes the codebase navigable even to a reader unfamiliar with CLIPS.
+
+\textbf{Portability:} The system uses only standard CLIPS 6.x constructs and no external dependencies. It compiles and runs on any platform with a standard CLIPS interpreter. The test files use \texttt{batch} rather than hard-coded initialization, making them self-contained and reproducible.
+
+\textbf{Reusability:} The template definitions in \texttt{templates.clp} are generic enough to accommodate a significantly expanded laptop dataset without modification. The \texttt{requirement} template's dual slot design (symbolic value + numeric threshold) generalizes to any constraint that can be expressed as either a category or a range.
+
+\textbf{Balanced Rule Granularity:} Rules deliberately avoid compound conditions. A gaming user triggers two separate requirement rules - one for GPU and one for CPU - rather than a single rule with both conclusions. This granularity makes the rule set easier to extend (adding a third gaming requirement does not require modifying existing rules) and easier to debug (each rule can be traced individually in the agenda).
+
+%% ============================================================
+%% 12. LIMITATIONS
+%% ============================================================
+\section{Limitations}
+\label{sec:limitations}
+
+The system has several limitations that are important to acknowledge honestly.
+
+The laptop dataset is static and contains only sixteen models. Real-world purchasing decisions involve hundreds of configurations, and the system cannot generalize to models outside its knowledge base. Adding new models requires manual authorship of \texttt{laptop} facts.
+
+Price tiers are coarse categorical abstractions (low, medium, high) rather than actual prices. Two laptops in the same tier may differ by hundreds of dollars in practice, but the system treats them identically. A more precise system would use actual price values and allow the user to specify a numeric budget.
+
+The system contains no learning component. Its rules encode fixed heuristics and do not improve with use. If a user disagrees with a recommendation, the system has no mechanism to update its reasoning accordingly.
+
+There is no handling of uncertainty or partial preference. If a user is indifferent between two equally valid models, the system recommends both without any mechanism to rank or prioritize them further.
+
+Finally, the knowledge base was derived from published specifications and general domain knowledge rather than from a structured elicitation session with a human laptop specialist. Some rules may oversimplify domain nuances - for example, treating integrated GPU as categorically insufficient for editing, when modern integrated graphics (such as Apple M-series) may be adequate for light creative work.
+
+%% ============================================================
+%% 13. CONCLUSION
+%% ============================================================
+\section{Conclusion}
+
+This report has described the design, implementation, and validation of a rule-based expert system for laptop model recommendation, implemented in CLIPS 6.x. The submitted system consists of 41 rules across three functional files, operating over a curated knowledge base of 16 laptop models drawn from 2025 market offerings across business, gaming, ultrabook, and creator categories.
+
+The knowledge engineering process revealed a recurring challenge in expert system design: as the fact base grows, rules that were sufficient for a smaller dataset become insufficiently discriminating. The original system was designed around eight models, and several rules --- particularly the RAM minimum threshold and the absence of GPU-suitability constraints --- produced near-universal recommendations when the fact base expanded to 16 models all carrying 16 GB or more of RAM. Addressing this required two additional requirement inference rules (GPU suitability for browsing and business profiles) and two additional filter rules (discrete GPU elimination and gaming-category elimination), bringing the total from the initial 31 to 41. This refinement cycle is representative of real knowledge engineering practice: knowledge bases require iteration as their coverage grows.
+
+The three test cases demonstrate that the system produces logically consistent, traceable recommendations across diverse user profiles. Portability is the dominant discriminator in Test Case 1, reducing 16 candidates to 3. Hardware requirements (discrete GPU, high CPU tier) are the dominant discriminators in Test Case 2, reducing 16 candidates to 4. Budget is the dominant discriminator in Test Case 3, reducing 16 candidates to 2. In each case, every elimination can be traced to a specific fired rule and a specific fact in working memory --- a transparency property that statistical models do not provide without additional interpretability tooling.
+
+The system remains limited in scope: it operates over a static, manually authored fact base, uses coarse three-tier classifications for price and CPU, and contains no mechanism for ranking recommendations when multiple models survive filtering. These are appropriate limitations for an academic prototype and are documented in Section 12. The core contribution of the project --- demonstrating that a small, well-structured rule base can perform explainable, multi-attribute filtering over a realistic product dataset --- is validated by the test results.
+
+
+%% ============================================================
+%% 14. REFERENCES
+%% ============================================================
+\section{References}
+
+\begin{enumerate}
+    \item Intel Corporation. \textit{Intel ARK - Product Specifications}. \url{https://ark.intel.com}
+    \item Advanced Micro Devices. \textit{AMD Laptop Processors}. \url{https://www.amd.com/en/products/processors/laptop}
+    \item NVIDIA Corporation. \textit{GeForce Laptop GPUs}. \url{https://www.nvidia.com/en-us/geforce/laptops}
+    \item Lenovo Group. \textit{Lenovo ThinkPad E14 Gen 4 Product Page}. \url{https://www.lenovo.com/us/en/laptops}
+    \item Dell Technologies. \textit{Dell XPS 15 Specifications}. \url{https://www.dell.com/en-us/shop/laptops}
+    \item ASUSTeK Computer Inc. \textit{ASUS ROG Strix G15}. \url{https://rog.asus.com/laptops}
+    \item Apple Inc. \textit{MacBook Air with M2 chip - Technical Specifications}. \url{https://www.apple.com/macbook-air}
+    \item NotebookCheck. \textit{Laptop Reviews and Benchmarks}. \url{https://www.notebookcheck.net}
+    \item Riley, G. (2015). \textit{CLIPS Reference Manual, Version 6.3}. NASA Johnson Space Center.
+    \item Giarratano, J., \& Riley, G. (2004). \textit{Expert Systems: Principles and Programming}, 4th ed. Course Technology.
+\end{enumerate}
+
+%% ============================================================
+%% 15. AI USAGE DISCLOSURE
+%% ============================================================
+\section{AI Usage Disclosure}
+
+In accordance with course policy, this section documents the use of AI-assisted tools during the preparation of this deliverable.
+
+\textbf{Tool used:} Claude (Anthropic), accessed via \url{https://claude.ai}.
+
+\textbf{Purpose:} The AI assistant was used to support the initial structuring of CLIPS rule templates, to check rule syntax against CLIPS 6.x conventions, and to assist in drafting sections of this report. All design decisions - including the selection of laptop models, the choice of attributes, rule categorization, and test case construction - were made by the student author and reviewed for correctness and consistency.
+
+\textbf{Scope:} The AI was not used to perform knowledge elicitation, evaluate recommendations, or substitute for understanding of the domain or the CLIPS inference model. All generated content was reviewed, revised, and validated by the author prior to submission.
+
+\textbf{Verification:} All CLIPS code was compiled and executed in the CLIPS 6.x IDE. Test results reported in Section 9 reflect actual system output observed during live execution sessions.
+
+\end{document}
