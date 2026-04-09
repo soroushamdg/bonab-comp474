@@ -1,0 +1,575 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[margin=1in,headheight=15pt]{geometry}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage{setspace}
+\usepackage{tabularx}
+\usepackage{float}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue,
+    citecolor=black
+}
+
+\lstdefinestyle{clips}{
+    backgroundcolor=\color{gray!8},
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{brown},
+    breaklines=true,
+    frame=single,
+    frameround=tttt,
+    rulecolor=\color{gray!50},
+    xleftmargin=1em,
+    xrightmargin=1em,
+    aboveskip=0.8em,
+    belowskip=0.8em,
+    showstringspaces=false,
+    tabsize=3
+}
+
+\lstdefinestyle{output}{
+    backgroundcolor=\color{black!5},
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    frame=single,
+    rulecolor=\color{gray!40},
+    xleftmargin=1em,
+    xrightmargin=1em,
+    aboveskip=0.8em,
+    belowskip=0.8em,
+    showstringspaces=false
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\small COMP 474/6741 -- Deliverable 2}
+\lhead{\small Laptop Recommendation Expert System}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\titleformat{\section}{\large\bfseries}{{\thesection}}{1em}{}[\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries}{{\thesubsection}}{1em}{}
+
+\setlength{\parskip}{0.5em}
+
+\begin{document}
+
+%% ============================================================
+%% TITLE PAGE
+%% ============================================================
+\begin{titlepage}
+\centering
+\vspace*{2cm}
+
+{\LARGE\bfseries A Rule-Based Expert System\\[0.4em]for Laptop Model Recommendation\par}
+
+\vspace{1.2cm}
+{\large Deliverable 2 -- System Improvements, Scoring, and Ranked Recommendations\par}
+
+\vspace{2cm}
+\hrule
+\vspace{0.8cm}
+
+\begin{tabular}{rl}
+\textbf{Course:}      & COMP 474 / 6741 -- Intelligent Systems \\[0.4em]
+\textbf{Instructor:}  & Pankaj Kamthan \\[0.4em]
+\textbf{Student:}     & Soroush Abdolmohammadpourbonab \\[0.4em]
+\textbf{Student ID:}  & \#40206879 \\[0.4em]
+\textbf{Date:}        & April 14, 2026 \\[0.4em]
+\textbf{Repository:}  & \url{https://github.com/soroushamdg/bonab-comp474} \\
+\end{tabular}
+
+\vspace{0.8cm}
+\hrule
+
+\vfill
+{\small Department of Computer Science and Software Engineering\\
+Concordia University}
+\end{titlepage}
+
+%% ============================================================
+%% TABLE OF CONTENTS
+%% ============================================================
+\tableofcontents
+\newpage
+
+%% ============================================================
+%% 1. INTRODUCTION
+%% ============================================================
+\section{Introduction}
+
+Choosing a laptop without technical knowledge is a harder problem than it looks. The gap between what a user can articulate --- ``I need something for coding, not too expensive, easy to carry'' --- and the hardware attributes that satisfy that description is wide enough to be genuinely useful to bridge with structured reasoning.
+
+Deliverable 1 addressed this by building a CLIPS-based expert system that translates five user inputs into hardware requirements, then filters a 16-model knowledge base against those requirements using 41 rules. The system produced a flat list of models that passed all hard constraints, with printout statements explaining each rejection. It worked --- but it had real weaknesses worth fixing.
+
+Deliverable 2 does not build a new system. It improves the existing one in three targeted ways: it adds traceable explanation chains so that every rejection can be understood at two levels instead of one; it introduces soft constraints and a scoring mechanism so that surviving models can be ranked by preference rather than treated as equally valid; and it labels the final output as BEST MATCH, SECOND BEST, and ALSO RECOMMENDED rather than presenting an unordered list. The result is a system that reasons more like an expert and less like a database query.
+
+%% ============================================================
+%% 2. OVERVIEW OF DELIVERABLE 1 SYSTEM
+%% ============================================================
+\section{Overview of Deliverable 1 System}
+
+The Deliverable 1 system consisted of five CLIPS source files and 41 rules operating over a 16-model laptop knowledge base. Inference followed a three-phase pipeline. First, requirement rules translated the user's primary use case, budget level, and portability preference into \texttt{requirement} facts --- hardware thresholds such as minimum RAM, required GPU type, and maximum weight. Second, filtering rules cross-referenced every \texttt{laptop} fact against the active requirements and asserted \texttt{rejected} facts for any violations, each carrying a plain-English reason string. Third, recommendation rules collected all models with no matching \texttt{rejected} fact and asserted \texttt{recommended} facts, then printed a hardware summary for each.
+
+The system handled a meaningful range of constraint combinations: portability, budget, screen preference, GPU suitability, gaming-category elimination, and webcam requirements all contributed to filtering. By the end of Deliverable 1, the rule count stood at 41 and the knowledge base covered 16 models from business, gaming, ultrabook, and creator categories. That foundation is solid. What it lacked was the ability to say anything useful about the models that survived.
+
+%% ============================================================
+%% 3. LIMITATIONS OF DELIVERABLE 1
+%% ============================================================
+\section{Limitations of Deliverable 1}
+\label{sec:limitations-d1}
+
+Four limitations stand out clearly once the Deliverable 1 system runs against a reasonably sized knowledge base.
+
+\textbf{No ranking of valid recommendations.} Every model that passed all hard filters was reported identically, with the same ``Meets all derived requirements'' message regardless of how well it fit the user's preferences. A session with three or four survivors gave the user no guidance on which to actually buy. This is a meaningful gap --- real expert systems are expected to prioritise, not just filter.
+
+\textbf{Binary constraint evaluation.} Every constraint was hard: a model either passed or was eliminated entirely. There was no way to express a preference that mattered but was not decisive. Screen size, for example, was either a hard portability constraint or not a constraint at all. A user who preferred a 14-inch screen but would accept 15.6 inches had no way to express that preference, and the system had no way to reward models that matched it.
+
+\textbf{Shallow explanation output.} Rejection messages said \emph{what} failed: ``price tier high exceeds allowed medium budget.'' They did not say \emph{why that constraint existed}. A user seeing that message could reasonably ask why medium budget excludes high-tier models, and the system had no answer in its output. The reasoning chain was implicit in the rules but invisible in the output.
+
+\textbf{No comparison between survivors.} When multiple models passed all filters, the output provided no basis for comparison other than reading the hardware profile of each. A first-time buyer who cannot evaluate the difference between an integrated and a discrete GPU is not helped by being told both are acceptable. They need the system to make a reasoned choice between them.
+
+These are not cosmetic issues. They represent the difference between a system that acts as a filter and one that acts as an advisor. Deliverable 2 addresses all four.
+
+%% ============================================================
+%% 4. IMPROVEMENTS IN DELIVERABLE 2
+%% ============================================================
+\section{Improvements in Deliverable 2}
+
+\subsection{Explanation Chains}
+
+In Deliverable 1, every rejection produced one line of output explaining what attribute failed. The message was accurate but shallow. Seeing ``CPU tier mid does not meet high-tier requirement'' is informative only if the user already understands why a high-tier CPU was required in the first place --- which is exactly the kind of knowledge they lack.
+
+The solution is a two-step explanation chain. When a model is rejected, a second rule fires that looks at the same rejection fact alongside the user profile and requirement context, then prints a follow-up line connecting the failed attribute back to its cause:
+
+\begin{lstlisting}[style=output]
+REJECTED: MSI Thin GF63 12th Gen -- CPU tier mid does not meet high-tier requirement.
+  CHAIN [MSI Thin GF63 12th Gen]: CPU tier mid -> gaming use case requires high-tier CPU.
+\end{lstlisting}
+
+The chain is also asserted as a \texttt{justification} fact in working memory, giving it a persistent presence that can be inspected after inference completes. Nine chain rules cover every possible rejection reason: RAM, GPU requirement, CPU tier, weight, screen size, low budget, medium budget, unnecessary discrete GPU, and gaming category mismatch. Each rule pattern-matches on a specific \texttt{rejected} reason string and pulls the relevant user and laptop context to construct the explanation.
+
+This is qualitatively different from adding more text to the existing printout. A flat message is generated in one rule and requires no understanding of why the constraint exists. A chain requires the system to trace the requirement back to its origin --- which is what a human expert does when explaining a recommendation.
+
+\subsection{Soft Constraints and Scoring}
+
+Hard constraints eliminate models. That is necessary but not sufficient. Among the models that survive filtering, some are a better fit for the user than others --- and in Deliverable 1, that distinction was invisible.
+
+Soft constraints address this by awarding points to surviving models for preferred attributes without eliminating models that do not satisfy them. The implementation uses a two-layer design. Eight scoring rules each evaluate a single criterion for a given recommended model and assert a \texttt{score} fact if the criterion is met:
+
+\begin{lstlisting}[style=clips]
+(defrule score-ram-high
+   (declare (salience -5))
+   (recommended (model ?m))
+   (laptop (model ?m) (ram ?r))
+   (test (>= ?r 32))
+   (not (score (model ?m) (reason "High RAM: 32+ GB")))
+   =>
+   (assert (score (model ?m) (points 2) (reason "High RAM: 32+ GB"))))
+\end{lstlisting}
+
+A separate \texttt{compute-total-score} rule then aggregates the soft criteria directly from laptop attributes using \texttt{bind} on the right-hand side, producing a \texttt{total-score} fact per model. Using a dedicated computation rule rather than summing the individual \texttt{score} facts avoids any dependency on the order in which those facts were asserted.
+
+The four soft criteria and their maximum contributions are: screen size match (up to +2 points), RAM headroom (up to +2 points), weight (up to +2 points), and CPU tier (up to +1 point). The maximum possible score is 8 points. Crucially, no soft criterion eliminates a model --- a model with a score of 1 out of 8 is still recommended, just ranked below models with higher scores.
+
+This reflects how a knowledgeable salesperson actually advises: they would not refuse to recommend a laptop because its screen is the wrong size, but they would prioritise one whose screen better matches what the buyer asked for.
+
+\subsection{Ranked Recommendations}
+
+Once scores are computed, three ranking rules determine the output label for each surviving model. The ranking uses CLIPS pattern-matching rather than sorting:
+
+\begin{lstlisting}[style=clips]
+(defrule rank-best-match
+   (declare (salience -20))
+   (total-score (model ?m) (value ?s))
+   (not (total-score (model ?other&~?m) (value ?s2&:(> ?s2 ?s))))
+   (not (ranked-recommendation (model ?m)))
+   =>
+   (assert (ranked-recommendation (model ?m) (rank best))))
+\end{lstlisting}
+
+The first rule identifies the model with no other model scoring higher --- this is the BEST MATCH. The second rule identifies the highest-scoring model among those not already ranked best --- the SECOND BEST. The third rule assigns \texttt{other} to everything remaining.
+
+When two models tie on total score, both receive the same rank label. This is correct behaviour: ties mean the system genuinely cannot distinguish between them on the available soft criteria, and presenting both as equally recommended is more honest than arbitrarily picking one. The output labels this clearly.
+
+%% ============================================================
+%% 5. UPDATED SYSTEM DESIGN
+%% ============================================================
+\section{Updated System Design}
+
+\subsection{New Templates}
+
+The Deliverable 1 system defined five templates: \texttt{user}, \texttt{laptop}, \texttt{requirement}, \texttt{rejected}, and \texttt{recommended}. Deliverable 2 adds four more.
+
+\texttt{justification} records the explanation chain for each rejection event. It carries three slots: \texttt{model} (the eliminated laptop), \texttt{constraint} (a symbolic label for the failed attribute, e.g., \texttt{ram-below-minimum}), and \texttt{caused-by} (a string explaining why the constraint was active). This gives chain rules a structured place to assert their conclusions rather than relying solely on printout side effects.
+
+\texttt{score} records one soft-criterion award per model per criterion. Its \texttt{points} slot holds the numeric value and its \texttt{reason} slot holds a human-readable description. Using individual facts rather than a single aggregate means the reasoning behind each point is fully transparent and inspectable in working memory.
+
+\texttt{total-score} holds the aggregated soft score per surviving model. It is asserted by a single computation rule and consumed by the ranking rules.
+
+\texttt{ranked-recommendation} holds the final label (best, second, or other) for each surviving model. Separating this from the \texttt{recommended} template keeps the ranking logic independent from the filtering logic --- a model can be recommended without being ranked if ranking has not yet fired, which respects the salience ordering.
+
+\subsection{Updated Rule File Summary}
+
+Table~\ref{tab:rulecounts} shows the rule distribution across all files in the upgraded system.
+
+\begin{table}[h]
+\centering
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{lrp{6cm}}
+\toprule
+\textbf{File} & \textbf{Rules} & \textbf{Contents} \\
+\midrule
+\texttt{requirement-rules.clp} & 24 & Usage, budget, portability, screen preference, webcam, GPU suitability \\
+\texttt{filtering-rules.clp}   & 20 & 11 hard constraint filters (F1--F11) + 9 explanation chain rules (C1--C9) \\
+\texttt{recommendation-rules.clp} & 20 & 4 core + 8 soft scoring + 1 total score + 3 ranking + 4 ranked print \\
+\midrule
+\textbf{Total} & \textbf{64} & \\
+\bottomrule
+\end{tabular}
+\caption{Rule distribution across the upgraded system (Deliverable 2)}
+\label{tab:rulecounts}
+\end{table}
+
+\subsection{Updated Inference Workflow}
+
+The reasoning pipeline now has two additional phases compared to Deliverable 1:
+
+\begin{enumerate}
+    \item \textbf{Requirement Inference} -- user fact is translated into requirement facts (24 rules, unchanged)
+    \item \textbf{Hard Constraint Filtering} -- laptop facts are evaluated against requirements; rejected facts are asserted (rules F1--F11)
+    \item \textbf{Explanation Chain Generation} -- for each rejected model, a justification fact is asserted linking the failure back to its cause (rules C1--C9)
+    \item \textbf{Soft Constraint Scoring} -- surviving models receive score facts for preferred attributes; total-score facts are computed (rules SC1--SC8, TS1)
+    \item \textbf{Ranking} -- ranked-recommendation facts are assigned based on total-score comparison (rules RK1--RK3)
+    \item \textbf{Ranked Output} -- final results are printed with BEST MATCH, SECOND BEST, and ALSO RECOMMENDED labels (rules PR1--PR3)
+\end{enumerate}
+
+Salience values enforce the phase ordering. Requirement and filter rules fire at default salience. Chain rules at the same salience fire immediately after each rejection due to recency ordering. Scoring rules carry salience $-5$, the total-score rule carries salience $-10$, ranking rules carry salience $-20$ through $-30$, and print rules carry salience $-35$ through $-55$.
+
+%% ============================================================
+%% 6. VALIDATION AND TESTING
+%% ============================================================
+\section{Validation and Testing}
+
+\subsection{Test Case 1: Developer with Portability Requirement (Normal Scenario)}
+
+\textbf{Input:} primary-use = development, budget-level = medium, portability = yes, screen-pref = medium, needs-webcam = yes
+
+\textbf{Inferred Hard Requirements:}
+\begin{itemize}
+    \item Minimum RAM: 16 GB (development workload)
+    \item Storage: SSD (development workload)
+    \item Webcam: yes (explicit user requirement)
+    \item Max price tier: medium (budget)
+    \item Max weight: 1.6 kg (portability)
+    \item Max screen size: 14.1 inches (portability)
+\end{itemize}
+
+\textbf{Hard Filtering Outcome:} 13 of 16 models rejected. Four gaming-category machines eliminated immediately (F11). High-price models then eliminated by budget (F7). Remaining over-weight and over-screen models eliminated by portability filters (F4, F5). Three models pass: ASUS Zenbook 14 OLED 2025, Lenovo IdeaPad Flex 5 Gen 9, and Lenovo ThinkPad E14 Gen 6.
+
+\textbf{Representative Chain Output:}
+\begin{lstlisting}[style=output]
+REJECTED: MSI Thin GF63 12th Gen -- weight 1.86 kg exceeds portability limit of 1.6 kg.
+  CHAIN [MSI Thin GF63 12th Gen]: weight 1.86 kg > 1.6 kg limit -> user requires portability.
+\end{lstlisting}
+
+\textbf{Soft Scoring and Ranking:}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{lcp{6cm}}
+\toprule
+\textbf{Model} & \textbf{Score} & \textbf{Criteria Met} \\
+\midrule
+ASUS Zenbook 14 OLED 2025   & 7/8 & Screen match (+2), High RAM 32 GB (+2), Very lightweight 1.39 kg (+2), High CPU (+1) \\
+Lenovo ThinkPad E14 Gen 6   & 4/8 & Screen match (+2), Adequate RAM (+1), Lightweight (+1) \\
+Lenovo IdeaPad Flex 5 Gen 9 & 4/8 & Screen match (+2), Adequate RAM (+1), Lightweight (+1) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Final Output:}
+\begin{lstlisting}[style=output]
+  BEST MATCH  [Soft Score: 7/8 pts]
+    MODEL: ASUS Zenbook 14 OLED 2025
+
+  SECOND BEST  [Soft Score: 4/8 pts]
+    MODEL: Lenovo ThinkPad E14 Gen 6
+
+  SECOND BEST  [Soft Score: 4/8 pts]
+    MODEL: Lenovo IdeaPad Flex 5 Gen 9
+\end{lstlisting}
+
+\textbf{Analysis:} The ASUS Zenbook 14 OLED 2025 wins decisively with 7 out of 8 possible points. It is the only model in the surviving set with 32 GB RAM and a sub-1.4 kg weight, which together account for four of its seven points. The two Lenovo machines tie at 4 points --- they are equally strong on screen match and both lightweight, but neither can close the gap on RAM headroom or CPU tier. The tie is reported honestly. In Deliverable 1, all three models would have appeared in an unordered list with no indication that the Zenbook is substantially the stronger choice.
+
+\subsection{Test Case 2: Enthusiast Gamer, No Portability Constraint (Normal Scenario with Ties)}
+
+\textbf{Input:} primary-use = gaming, budget-level = high, portability = no, screen-pref = large, needs-webcam = no
+
+\textbf{Inferred Hard Requirements:}
+\begin{itemize}
+    \item GPU type: discrete (gaming workload)
+    \item CPU tier: high (gaming workload)
+    \item Storage: SSD (gaming workload)
+    \item Max price tier: any (high budget)
+    \item Screen size: unrestricted (portability = no, screen-pref = large)
+\end{itemize}
+
+\textbf{Hard Filtering Outcome:} 12 of 16 models rejected. All integrated-GPU models fail F2. Remaining mid/low CPU tier models fail F3. Four models pass: ASUS ROG Strix G16 2025, Razer Blade 16 2025, Lenovo Legion Pro 5i Gen 10, and Dell XPS 15 9530.
+
+\textbf{Soft Scoring and Ranking:}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{lcp{6cm}}
+\toprule
+\textbf{Model} & \textbf{Score} & \textbf{Criteria Met} \\
+\midrule
+ASUS ROG Strix G16 2025     & 5/8 & Large screen match (+2), High RAM 32 GB (+2), High CPU (+1) \\
+Razer Blade 16 2025         & 5/8 & Large screen match (+2), High RAM 32 GB (+2), High CPU (+1) \\
+Lenovo Legion Pro 5i Gen 10 & 5/8 & Large screen match (+2), High RAM 32 GB (+2), High CPU (+1) \\
+Dell XPS 15 9530            & 3/8 & High RAM 32 GB (+2), High CPU (+1) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Final Output:}
+\begin{lstlisting}[style=output]
+  BEST MATCH  [Soft Score: 5/8 pts]
+    MODEL: ASUS ROG Strix G16 2025
+
+  BEST MATCH  [Soft Score: 5/8 pts]
+    MODEL: Razer Blade 16 2025
+
+  BEST MATCH  [Soft Score: 5/8 pts]
+    MODEL: Lenovo Legion Pro 5i Gen 10
+
+  ALSO RECOMMENDED  [Soft Score: 3/8 pts]
+    MODEL: Dell XPS 15 9530
+\end{lstlisting}
+
+\textbf{Analysis:} Three models tie at 5 points, all correctly labeled BEST MATCH. The Dell XPS 15 9530 is correctly ranked lower at 3 points because its 15.6-inch screen does not satisfy the large-screen preference (the soft criterion requires greater than 15.6 inches), and it misses the 2-point screen bonus. The tie among the top three is genuine --- all three are 16-inch gaming machines with identical soft attribute profiles. The system reports this honestly rather than picking an arbitrary winner. A user seeing this output would know to compare those three on price or specific GPU model, information outside the scope of the current knowledge base.
+
+\subsection{Test Case 3: Business Professional, Low Budget (Edge Case --- Constrained Survivors)}
+
+\textbf{Input:} primary-use = business, budget-level = low, portability = no, screen-pref = any, needs-webcam = yes
+
+\textbf{Inferred Hard Requirements:}
+\begin{itemize}
+    \item Webcam: yes (business workload + explicit user requirement)
+    \item No discrete GPU (business workload)
+    \item Max price tier: low (budget)
+    \item Screen: unrestricted (portability = no, screen-pref = any)
+\end{itemize}
+
+\textbf{Hard Filtering Outcome:} 14 of 16 models rejected. GPU and gaming-category filters eliminate five machines. Budget filter eliminates the remaining 9 medium/high-tier models. Only two low-tier models survive: Acer Aspire 3 2025 and Dell Inspiron 15 3000 2025.
+
+\textbf{Soft Scoring and Ranking:}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{lcp{6cm}}
+\toprule
+\textbf{Model} & \textbf{Score} & \textbf{Criteria Met} \\
+\midrule
+Acer Aspire 3 2025         & 1/8 & Adequate RAM (+1) \\
+Dell Inspiron 15 3000 2025 & 1/8 & Adequate RAM (+1) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Analysis:} Both survivors tie at 1 point. Neither model is lightweight, neither has 32 GB RAM, and with \texttt{screen-pref = any} no screen-match bonus applies. The system correctly labels both as BEST MATCH because there is no basis to prefer one over the other with the available soft criteria. This outcome is realistic --- under a very tight budget constraint, the choice between two comparable low-end machines genuinely comes down to factors the system does not model, such as warranty terms or specific port selection. The tie is informative, not a failure.
+
+\subsection{Test Case 4: Gaming on Low Budget (Conflict Scenario --- No Recommendations)}
+
+\textbf{Input:} primary-use = gaming, budget-level = low, portability = no, screen-pref = any, needs-webcam = no
+
+\textbf{Inferred Hard Requirements:}
+\begin{itemize}
+    \item GPU type: discrete (gaming)
+    \item CPU tier: high (gaming)
+    \item Storage: SSD (gaming)
+    \item Max price tier: low (budget)
+\end{itemize}
+
+\textbf{Hard Filtering Outcome:} All 16 models eliminated. The gaming hardware requirements (discrete GPU, high CPU) and the low budget constraint are mutually exclusive in the current knowledge base --- every model with a discrete GPU and high-tier CPU is in the high price tier. The system fires rule B4 at the start of inference (advisory warning for gaming on low budget) and correctly produces no recommendation.
+
+\textbf{Output:}
+\begin{lstlisting}[style=output]
+WARNING: Gaming on a low budget is very restrictive. Recommendations may be limited.
+...
+============================================
+NO LAPTOP MATCHES ALL YOUR REQUIREMENTS.
+Consider relaxing budget or portability constraints.
+============================================
+INFO: Review CHAIN lines above for full reasoning.
+\end{lstlisting}
+
+\textbf{Analysis:} This is the correct outcome. No model in the knowledge base satisfies gaming hardware requirements at a low price tier. The system does not hallucinate a recommendation or silently return an empty result --- it prints a clear advisory, explains through the chain output exactly why each model was eliminated, and directs the user to relax their constraints. This is expert behavior: a knowledgeable advisor would tell a client directly that their stated requirements are incompatible, not hand them a random laptop and hope for the best.
+
+%% ============================================================
+%% 7. COMPARISON: DELIVERABLE 1 VS DELIVERABLE 2
+%% ============================================================
+\section{Comparison: Deliverable 1 vs Deliverable 2}
+
+Table~\ref{tab:comparison} summarises the key differences between the two system versions.
+
+\renewcommand{\arraystretch}{1.7}
+\begin{longtable}{>{\small}p{3.8cm}>{\small}p{5cm}>{\small}p{5cm}}
+\caption{Feature comparison between Deliverable 1 and Deliverable 2} \label{tab:comparison} \\
+\toprule
+\textbf{Feature} & \textbf{Deliverable 1} & \textbf{Deliverable 2} \\
+\midrule
+\endfirsthead
+\caption[]{(continued)} \\
+\toprule
+\textbf{Feature} & \textbf{Deliverable 1} & \textbf{Deliverable 2} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+Templates
+& 5: \texttt{user}, \texttt{laptop}, \texttt{requirement}, \texttt{rejected}, \texttt{recommended}
+& 9: adds \texttt{justification}, \texttt{score}, \texttt{total-score}, \texttt{ranked-recommendation} \\[4pt]
+
+Total rules
+& 41
+& 64 \\[4pt]
+
+Constraint model
+& Hard constraints only (pass or reject)
+& Hard constraints + soft constraints (scoring) \\[4pt]
+
+Explanation depth
+& Single-level: ``what failed''
+& Two-level chain: ``what failed $\rightarrow$ why it was required'' \\[4pt]
+
+Filtering
+& Binary elimination
+& Same binary elimination (unchanged) \\[4pt]
+
+Recommendation output
+& Flat unordered list of survivors
+& BEST MATCH / SECOND BEST / ALSO RECOMMENDED with scores \\[4pt]
+
+Scoring
+& Not present
+& 0--8 point scale; four soft criteria \\[4pt]
+
+Ranking
+& Not present
+& Pattern-matching rank assignment (RK1--RK3) \\[4pt]
+
+Tie handling
+& N/A
+& Both tied models receive same rank label \\[4pt]
+
+Conflict detection
+& Advisory printout only
+& Advisory + full chain output + explicit no-match message \\[4pt]
+
+Working memory transparency
+& Rejected facts persist only
+& Rejected + justification + score + total-score + ranked-recommendation all persist \\
+
+\end{longtable}
+\renewcommand{\arraystretch}{1}
+
+%% ============================================================
+%% 8. DESIGN QUALITY IMPROVEMENTS
+%% ============================================================
+\section{Design Quality Improvements}
+
+\textbf{Modularity.} All three new feature areas are implemented in separate rule groups within existing files. Chain rules form Group 5 of \texttt{filtering-rules.clp}, scoring rules form a distinct group in \texttt{recommendation-rules.clp}, and ranking rules form another. Adding a new soft criterion requires writing one new scoring rule and adjusting the \texttt{compute-total-score} rule's \texttt{if-then} logic --- no other file needs to change.
+
+\textbf{Maintainability.} The four new templates are clearly commented with slot descriptions and design rationale. Chain rules follow a consistent naming convention (\texttt{chain-X-rejection}) that mirrors the filter rule that triggers them (\texttt{filter-X}). A developer reading \texttt{chain-ram-rejection} can immediately find its counterpart \texttt{filter-insufficient-ram} in the same file.
+
+\textbf{Scalability.} Adding a new laptop model requires only a new entry in \texttt{laptop-facts.clp}. The chain rules, scoring rules, and ranking rules all operate on slot patterns rather than model names, so they extend automatically to any new model without modification. Adding a new soft criterion requires one new \texttt{score} rule and one additional condition in \texttt{compute-total-score}.
+
+\textbf{Explainability.} This is the area of most significant improvement. Deliverable 1 made the filtering logic transparent but left the requirement origin implicit. Deliverable 2 makes the full reasoning chain visible in the output: every rejection now traces back to a user input that caused the requirement that caused the failure. A user with no technical background can follow the chain from their stated preferences to each eliminated model.
+
+\textbf{Realism of reasoning.} Hard-only constraint systems are rare in real expert system applications precisely because real decisions involve tradeoffs, not just elimination. The introduction of soft constraints and scoring moves the system meaningfully closer to how domain experts actually advise: they apply hard requirements first, then preference-rank what remains.
+
+%% ============================================================
+%% 9. LIMITATIONS
+%% ============================================================
+\section{Limitations}
+\label{sec:limitations-d2}
+
+The improvements in Deliverable 2 address the system's reasoning depth but leave several structural limitations intact.
+
+The laptop dataset is still static and manually authored. Adding a new model requires editing \texttt{laptop-facts.clp} by hand. There is no mechanism for the system to discover new models, update prices, or reflect discontinued products. In a production context this would be a significant constraint; for an academic prototype it is acceptable.
+
+The price tiers remain coarse three-level abstractions. Two laptops at the boundary between medium and high price tiers may differ by only fifty dollars, but the system treats them categorically differently. A finer-grained budget model using numeric price values would reduce this distortion.
+
+The soft scoring system is fixed and non-configurable. The weights (2 points for screen match, 2 for RAM, 2 for weight, 1 for CPU tier) were chosen to reflect general usage patterns but have no empirical basis. A user who cares deeply about weight and not at all about CPU tier cannot express that priority, and the system will score both dimensions identically.
+
+Ties in the soft score are reported honestly but not resolved. When two models share the same total score, the system has no further criterion to distinguish them. This is correct behaviour given the current information model, but a richer scoring system with more criteria or user-configurable weights could reduce tie frequency.
+
+Finally, the system still has no learning component. It cannot update its rules based on user feedback, track which recommendations led to purchases, or improve its soft criteria weighting over time. These are appropriate characteristics for a rule-based academic prototype and would require a fundamentally different architecture to address.
+
+%% ============================================================
+%% 10. CONCLUSION
+%% ============================================================
+\section{Conclusion}
+
+Deliverable 1 produced a functional expert system: it reasoned correctly, applied a meaningful set of constraints, and made its filtering logic visible. Deliverable 2 takes that foundation and addresses its most substantive weaknesses.
+
+Explanation chains make the reasoning traceable at two levels rather than one. A user who previously saw only ``what failed'' can now see ``what failed and why it was required'' --- which is the information they actually need to decide whether to relax a constraint. Soft constraints and scoring give the system something to say about models that survive filtering, rather than leaving the user with an unordered list and no further guidance. Ranked recommendations make the system's preferred choice explicit.
+
+Together these changes shift the system from being a constraint-checking tool to being something closer to an advisor. The distinction matters because users do not come to an expert system for a list of acceptable options --- they come for a recommendation. The upgraded system provides one, justifies it quantitatively, and remains transparent about uncertainty when models tie.
+
+The total rule count grew from 41 to 64, and the template count from 5 to 9. That growth reflects a genuine increase in reasoning capability rather than redundancy. Each new rule addresses a specific gap in the Deliverable 1 system: chain rules close the explanation gap, scoring rules close the ranking gap, and ranking rules close the output clarity gap. The system is now more intelligent, more informative, and more honest about the limits of what it can determine --- which is exactly what a good expert system should be.
+
+%% ============================================================
+%% 11. REFERENCES
+%% ============================================================
+\section{References}
+
+\begin{enumerate}
+    \item Intel Corporation. \textit{Intel ARK -- Product Specifications}. \url{https://ark.intel.com}
+    \item Advanced Micro Devices. \textit{AMD Laptop Processors}. \url{https://www.amd.com/en/products/processors/laptop}
+    \item NVIDIA Corporation. \textit{GeForce Laptop GPUs}. \url{https://www.nvidia.com/en-us/geforce/laptops}
+    \item Lenovo Group. \textit{Lenovo ThinkPad E14 Gen 6 and IdeaPad Flex 5 Gen 9}. \url{https://www.lenovo.com/us/en/laptops}
+    \item ASUSTeK Computer Inc. \textit{ASUS ROG Strix G16 2025 and Zenbook 14 OLED}. \url{https://rog.asus.com/laptops}
+    \item Razer Inc. \textit{Razer Blade 16 2025 Specifications}. \url{https://www.razer.com/gaming-laptops/razer-blade-16}
+    \item Samsung Electronics. \textit{Galaxy Book5 Pro Specifications}. \url{https://www.samsung.com/us/computing/galaxy-books}
+    \item Microsoft Corporation. \textit{Surface Laptop 7th Edition Tech Specs}. \url{https://www.microsoft.com/en-us/surface/devices/surface-laptop-7th-edition}
+    \item LG Electronics. \textit{LG Gram 16 2025}. \url{https://www.lg.com/us/laptops}
+    \item Dell Technologies. \textit{Dell XPS 15 9530 and Inspiron 15 3000 Specifications}. \url{https://www.dell.com/en-us/shop/laptops}
+    \item Riley, G. (2015). \textit{CLIPS Reference Manual, Version 6.3}. NASA Johnson Space Center.
+    \item Giarratano, J., \& Riley, G. (2004). \textit{Expert Systems: Principles and Programming}, 4th ed. Course Technology.
+    \item Tom's Hardware. \textit{Laptop Reviews and Benchmarks, 2025}. \url{https://www.tomshardware.com/laptops}
+    \item NotebookCheck. \textit{Laptop Specifications and Reviews}. \url{https://www.notebookcheck.net}
+\end{enumerate}
+
+%% ============================================================
+%% 12. AI USAGE DISCLOSURE
+%% ============================================================
+\section{AI Usage Disclosure}
+
+In accordance with course policy, this section documents the use of AI-assisted tools during the preparation of this deliverable.
+
+\textbf{Tool used:} Claude (Anthropic), accessed via \url{https://claude.ai}.
+
+\textbf{Purpose:} The AI assistant was used to support structuring of the CLIPS rule upgrades, to verify rule syntax against CLIPS 6.x conventions, and to assist in drafting sections of this report. All design decisions --- including the choice of soft criteria, the scoring weights, the chain rule design, and the ranking logic --- were made by the student author and reviewed for correctness and consistency against actual system output.
+
+\textbf{Scope:} The AI was not used to perform knowledge elicitation, evaluate recommendations, or substitute for understanding of the CLIPS inference model. All generated content was reviewed, revised, and validated by the author prior to submission.
+
+\textbf{Verification:} All CLIPS code was compiled and executed in the CLIPS 6.x IDE. Test results reported in Section 7 reflect actual system output observed during live execution sessions.
+
+\end{document}
